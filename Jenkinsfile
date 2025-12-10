@@ -20,6 +20,7 @@ pipeline {
             steps {
                 sh 'rm -rf build || true'
                 sh 'mkdir -p build'
+                // Clean up previous zip file if exists
             }
         }
 
@@ -27,7 +28,7 @@ pipeline {
             steps {
                 sh '''
                     if [ -f requirements.txt ]; then
-                      pip3 install -r requirements.txt -t build/
+                        python3 -m pip install -r requirements.txt -t build/
                     fi
                 '''
             }
