@@ -91,5 +91,5 @@ def lambda_handler(event, context):
     return {
         "statusCode": 405,
         "headers": {"Content-Type": "application/json"},
-        "body": json.dumps({"message": "Method is not at all Allowed"}),
+        "body": json.dumps({"message": "Method is not at all allowed"}),
     }
