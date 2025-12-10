@@ -1,7 +1,6 @@
 import json
 import os
 import boto3
-from boto3.dynamodb.conditions import Key
 
 TABLE_NAME = os.environ.get("EMP_TABLE_NAME", "Emp_Master")
 dynamodb = boto3.resource("dynamodb")
@@ -9,15 +8,40 @@ table = dynamodb.Table(TABLE_NAME)
 
 
 def lambda_handler(event, context):
-    http_method = event.get("httpMethod")
-    path = event.get("path")
+    # Log the full event for debugging
     print(f"Received event: {json.dumps(event)}")
 
-    if http_method == "POST" and "/employee" in path:
-        body = event.get("body")
-        if isinstance(body, str):
-            body = json.loads(body)
+    # ---- Normalize HTTP method, path, body, query params ----
+    http_method = None
+    path = ""
+    body = event.get("body")
+    query_params = {}
 
+    # HTTP API v2 (version == "2.0")
+    if event.get("version") == "2.0":
+        http_info = event.get("requestContext", {}).get("http", {})
+        http_method = http_info.get("method")
+        path = event.get("rawPath", "")
+        query_params = event.get("queryStringParameters") or {}
+
+    # REST API (no version or version == "1.0")
+    else:
+        http_method = event.get("httpMethod")
+        path = event.get("path", "")
+        query_params = event.get("queryStringParameters") or {}
+
+    # If body is a JSON string, parse it
+    if isinstance(body, str) and body.strip():
+        body = json.loads(body)
+    elif body is None:
+        body = {}
+
+    print(f"Normalized method={http_method}, path={path}, query={query_params}")
+
+    # -----------------------------------
+    # POST /employee  -> create employee
+    # -----------------------------------
+    if http_method == "POST" and path.endswith("/employee"):
         item = {
             "Emp_Id": body["Emp_Id"],
             "First_Name": body["First_Name"],
@@ -31,13 +55,14 @@ def lambda_handler(event, context):
         return {
             "statusCode": 201,
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps(
-                {"message": "Employee created", "item": item}
-            ),
+            "body": json.dumps({"message": "Employee created", "item": item}),
         }
 
-    if http_method == "GET" and "/employee" in path:
-        emp_id = event.get("queryStringParameters", {}).get("emp_id")
+    # -----------------------------------
+    # GET /employee?emp_id=E001 -> fetch
+    # -----------------------------------
+    if http_method == "GET" and path.endswith("/employee"):
+        emp_id = query_params.get("emp_id")
         if not emp_id:
             return {
                 "statusCode": 400,
